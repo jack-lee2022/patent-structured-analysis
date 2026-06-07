@@ -1,0 +1,24 @@
+{
+  "name": "analyze_patent",
+  "description": "Perform 4-step structured patent analysis on a patent document (PDF, text, or database ID). Returns a JSON object with: (1) independent claims analysis, (2) necessary components mapping, (3) diagram correspondence, (4) key diagram identification, and an overall summary. This is the core function of the patent-structured-analysis skill.",
+  "parameters": {
+    "type": "object",
+    "properties": {
+      "source": {
+        "type": "string",
+        "enum": ["patent_id", "pdf", "text"],
+        "description": "Input type: 'patent_id' queries a SQLite database, 'pdf' reads a local PDF file, 'text' analyzes raw patent text."
+      },
+      "value": {
+        "type": "string",
+        "description": "The patent ID (e.g., US11311692B2), absolute PDF file path, or raw patent text including claims and description."
+      },
+      "db_path": {
+        "type": "string",
+        "description": "SQLite database path. Required when source='patent_id'. Default: /home/rocky/patent-agent/data/patents.db",
+        "default": "/home/rocky/patent-agent/data/patents.db"
+      }
+    },
+    "required": ["source", "value"]
+  }
+}

@@ -40,9 +40,9 @@ A Hermes skill for performing rigorous 4-step structured patent analysis on any 
 
 ---
 
-## Installation (Hermes Agent)
+## Installation
 
-This skill is automatically discovered if cloned into your Hermes skills directory:
+### Hermes Agent
 
 ```bash
 # Clone into your Hermes skills path
@@ -50,7 +50,7 @@ git clone git@github.com:jack-lee2022/patent-structured-analysis.git \
   ~/.hermes/skills/patent-structured-analysis
 ```
 
-Hermes will load `SKILL.md` on startup and trigger the skill whenever you use phrases like:
+Hermes will auto-discover `SKILL.md` on startup and trigger the skill when you say:
 
 - `分析專利`、`拆解專利`、`FTO分析`
 - `獨立項分析`、`組件映射`、`附圖對應`
@@ -58,9 +58,129 @@ Hermes will load `SKILL.md` on startup and trigger the skill whenever you use ph
 
 ---
 
+### Claude Code
+
+Install the `.skill` package (zip-based skill bundle):
+
+```bash
+# Download the latest .skill release
+curl -L -o patent-structured-analysis.skill \
+  https://github.com/jack-lee2022/patent-structured-analysis/releases/latest/download/patent-structured-analysis.skill
+
+# Install via Claude Code CLI
+claude skills install patent-structured-analysis.skill
+```
+
+Or clone directly (Claude Code also supports folder-based skills):
+
+```bash
+claude skills add \
+  --from git@github.com:jack-lee2022/patent-structured-analysis.git
+```
+
+---
+
+### OpenClaw
+
+OpenClaw uses the same folder-based skill structure as Hermes:
+
+```bash
+# Clone into OpenClaw's skills directory (default path)
+git clone git@github.com:jack-lee2022/patent-structured-analysis.git \
+  ~/.openclaw/skills/patent-structured-analysis
+
+# Or via the OpenClaw CLI
+openclaw skill install jack-lee2022/patent-structured-analysis
+```
+
+> OpenClaw skill auto-discovery is enabled by default. If disabled, add to your `openclaw.yaml`:
+> ```yaml
+> skills:
+>   - path: ~/.openclaw/skills/patent-structured-analysis
+>   ```
+
+---
+
+### Gemini (Google AI / Vertex AI)
+
+Gemini does not use folder-based skills. Instead, load `SKILL.md` as a **system instruction** and expose the `analyze_patent` function via the **Function Calling** API.
+
+#### Option A: System Instruction (Chat/Studio)
+
+Copy the content of `SKILL.md` into the **System Instructions** field in Google AI Studio or Gemini API:
+
+```python
+from google import genai
+
+client = genai.Client(api_key="YOUR_API_KEY")
+
+# Load the skill as system instruction
+with open("SKILL.md") as f:
+    system_instruction = f.read()
+
+response = client.models.generate_content(
+    model="gemini-2.0-flash",
+    contents="Analyze patent US11311692B2 for FTO",
+    config=genai.types.GenerateContentConfig(
+        system_instruction=system_instruction
+    ),
+)
+```
+
+#### Option B: Function Calling (API/Vertex AI)
+
+Register the `analyze_patent` function so Gemini can call the script when needed:
+
+```python
+import subprocess
+import json
+
+analyze_patent_tool = {
+    "name": "analyze_patent",
+    "description": "Perform 4-step structured analysis on a patent (PDF, text, or DB ID)",
+    "parameters": {
+        "type": "object",
+        "properties": {
+            "source": {
+                "type": "string",
+                "enum": ["patent_id", "pdf", "text"],
+                "description": "Input type"
+            },
+            "value": {
+                "type": "string",
+                "description": "Patent ID, PDF path, or raw text"
+            },
+            "db_path": {
+                "type": "string",
+                "description": "SQLite DB path (required for patent_id source)"
+            }
+        },
+        "required": ["source", "value"]
+    }
+}
+
+def run_analysis(source, value, db_path=None):
+    cmd = ["python3", "scripts/analyze_patent.py", f"--{source}", value]
+    if db_path:
+        cmd += ["--db", db_path]
+    result = subprocess.run(cmd, capture_output=True, text=True)
+    return json.loads(result.stdout)
+
+# Use with Gemini function calling
+response = client.models.generate_content(
+    model="gemini-2.0-flash",
+    contents="Analyze patent US11311692B2",
+    config=genai.types.GenerateContentConfig(
+        tools=[analyze_patent_tool]
+    ),
+)
+```
+
+---
+
 ## Standalone Script Usage
 
-The bundled Python script works without Hermes:
+The bundled Python script works without any AI agent:
 
 ```bash
 # From patent-agent database
