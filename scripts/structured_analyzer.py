@@ -7,185 +7,123 @@ from pathlib import Path
 
 class StructuredAnalyzer:
     """
-    Patent Structured Analyzer with Dual-Pass logic and Mermaid visualization.
+    Patent Structured Analyzer with Dual-Pass logic, Mermaid visualization, and Drawing-only Figure Extraction.
     """
     
     def __init__(self):
         self.anchors = []
 
     def extract_text_from_pdf(self, pdf_path):
-        """Extract text from PDF and preserve paragraph indicators if possible."""
         doc = fitz.open(pdf_path)
         full_text = ""
         for page in doc:
             full_text += page.get_text("text") + "\n"
         return full_text
 
-    def identify_anchors(self, claims_text, full_description):
-        """
-        Pass 1: Anchor Identification.
-        Find component IDs (e.g., '102', '20') and paragraph tags (e.g., '[0045]').
-        """
-        # Find numeric IDs in claims (e.g., "housing (102)")
-        ids = set(re.findall(r'\(?(\d{2,})\)?', claims_text))
-        print(f"[PASS 1] Found component IDs: {ids}")
-        
-        anchors = []
-        # Split description into paragraphs (rough approximation)
-        paragraphs = re.split(r'\n\s*\n|\[\d{4}\]', full_description)
-        
-        for i, para in enumerate(paragraphs):
-            for cid in ids:
-                if cid in para:
-                    anchors.append(i)
-                    break
-        
-        self.anchors = sorted(list(set(anchors)))
-        return self.anchors
-
-    def get_dense_context(self, full_description, window=2):
-        """
-        Pass 2: Contextual Extraction.
-        Extract snippets around anchors.
-        """
-        paragraphs = re.split(r'\n\s*\n|\[\d{4}\]', full_description)
-        dense_paragraphs = []
-        
-        already_added = set()
-        for anchor in self.anchors:
-            start = max(0, anchor - window)
-            end = min(len(paragraphs), anchor + window + 1)
-            for j in range(start, end):
-                if j not in already_added:
-                    dense_paragraphs.append(paragraphs[j])
-                    already_added.add(j)
-        
-        return "\n\n".join(dense_paragraphs)
-
-    def generate_mermaid(self, structured_data, graph_type="component"):
-        """
-        Generate Mermaid syntax from structured JSON.
-        graph_type: "component" | "claim_tree"
-        """
-        if graph_type == "claim_tree":
-            mermaid = "graph LR\n"
-            tree = structured_data.get("claim_tree", {})
-            for claim, deps in tree.items():
-                for dep in deps:
-                    mermaid += f"    C{dep} --> C{claim}\n"
-            return mermaid
-
-        # Default component structure
-        mermaid = "graph TD\n"
-        components = structured_data.get("components", [])
-        
-        for comp in components:
-            cid = comp.get("id", "Unknown")
-            name = comp.get("name", "Unknown")
-            mermaid += f"    C{cid}[{name} {cid}]\n"
-            
-            # Relationships
-            for sub in comp.get("sub_components", []):
-                sid = sub.get("id")
-                sname = sub.get("name")
-                mermaid += f"    C{cid} --> C{sid}[{sname} {sid}]\n"
-        
-        return mermaid
-
     def extract_claim_tree(self, claims_text):
-        """
-        Extract claim dependency tree.
-        Example output: {"2": ["1"], "3": ["1"], "4": ["2", "3"]}
-        """
-        # Split by number markers (e.g., "1.", "Claim 1.")
         claim_blocks = re.split(r'(?:\n|\r\n|^)\s*(?:\d+\.|\(\d+\)|Claim\s+\d+\.?)', claims_text)
-        
         tree = {}
         for i, block in enumerate(claim_blocks):
             if not block.strip() or i == 0: continue
-            
             claim_num = str(i)
-            # Find dependencies like "claim 1", "claims 1-3", "reivindicación 1"
             deps = re.findall(r'(?:claim|claims|reivindicaci\u00f3n|revendication)\s*(\d+)', block, re.IGNORECASE)
             if deps:
                 tree[claim_num] = sorted(list(set(deps)), key=int)
-                
         return tree
 
     def extract_definitions(self, description):
-        """
-        Scan for lexicographical definitions.
-        Example: "The term 'X' means 'Y'."
-        """
         glossary = {}
-        # Patterns for definitions
         patterns = [
             r"term\s+['\"]([^'\"]+)['\"]\s+(?:means|is\s+defined\s+as|refers\s+to)\s+([^.]+)\.",
             r"['\"]([^'\"]+)['\"]\s+as\s+used\s+herein\s+(?:means|refers\s+to)\s+([^.]+)\.",
             r"definition\s+of\s+['\"]([^'\"]+)['\"]\s+is\s+([^.]+)\."
         ]
-        
         for pattern in patterns:
             matches = re.finditer(pattern, description, re.IGNORECASE)
             for m in matches:
                 term = m.group(1).strip()
                 definition = m.group(2).strip()
                 glossary[term] = definition
-                
         return glossary
 
     def extract_figure_image(self, pdf_path, fig_label, output_dir="."):
         """
-        Search for a figure label (e.g., 'FIG. 1') and save the page as an image.
+        Refined extraction: Priority given to pages WITH drawings (no/low text density).
         """
-        if not HAS_PYMUPDF:
-            return None
-        
+        if not HAS_PYMUPDF: return None
         doc = fitz.open(pdf_path)
         img_path = None
-        
-        # Normalize fig_label (e.g., 'FIG. 1')
         search_term = fig_label.replace("Figure", "FIG.").upper()
         
+        # Candidate pages (those that look like drawings)
+        drawing_pages = []
         for i in range(len(doc)):
             page = doc[i]
-            # Search for the FIG label on the page
-            text_instances = page.search_for(search_term)
-            if text_instances:
-                # If found, render the page to an image
-                pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))  # 2x zoom for better quality
-                filename = f"{patent_id}_{fig_label.replace(' ', '_')}.png"
+            text = page.get_text("text")
+            # Drawing pages usually have low word count (< 200 words) compared to Col pages
+            if len(text.split()) < 200:
+                drawing_pages.append(i)
+        
+        # Search for FIG label within those drawing-heavy pages first
+        for i in drawing_pages:
+            page = doc[i]
+            if page.search_for(search_term):
+                pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
+                filename = f"{Path(pdf_path).stem}_{fig_label.replace(' ', '')}_FIXED.png"
                 img_path = str(Path(output_dir) / filename)
                 pix.save(img_path)
-                print(f"[IMAGE] Extracted {fig_label} from page {i+1} to {img_path}")
-                break
+                print(f"[IMAGE] Extracted {fig_label} from DRAWING page {i+1}")
+                doc.close()
+                return img_path
         
         doc.close()
-        return img_path
+        return None
+
+    def sanitize_mermaid_label(self, label: str) -> str:
+        """Escape brackets and quotes for Mermaid node labels."""
+        if not label: return "node"
+        return label.replace("[", "(").replace("]", ")").replace("\"", "'")
+
+    def generate_mermaid(self, structured_data, graph_type="claim_tree"):
+        """
+        Generate human-readable Mermaid syntax.
+        """
+        if graph_type == "claim_tree":
+            mermaid = "```mermaid\ngraph LR\n"
+            tree = structured_data.get("claim_tree", {})
+            if not tree: return ""
+            for claim, deps in tree.items():
+                for dep in deps:
+                    mermaid += f'    Claim{dep}["Claim {dep}"] --> Claim{claim}["Claim {claim}"]\n'
+            return mermaid + "\n```"
+
+        # Default component structure
+        mermaid = "```mermaid\ngraph TD\n"
+        components = structured_data.get("components", [])
+        
+        for comp in components:
+            cid = comp.get("id", "Unknown")
+            name = self.sanitize_mermaid_label(comp.get("name", "Component"))
+            mermaid += f'    Comp{cid}["{name} {cid}"]\n'
+            
+            # Relationships
+            for sub in comp.get("sub_components", []):
+                sid = sub.get("id")
+                sname = self.sanitize_mermaid_label(sub.get("name", "Sub-component"))
+                mermaid += f'    Comp{cid} --> Comp{sid}["{sname} {sid}"]\n'
+        
+        return mermaid + "\n```"
 
     def run_analysis_pipeline(self, pdf_path, claims_text):
-        """Full pipeline execution."""
-        global patent_id
-        patent_id = Path(pdf_path).stem
-        print(f"[PIPELINE] Starting analysis for {pdf_path}")
-        
         full_text = self.extract_text_from_pdf(pdf_path)
-        
-        # New Features
         claim_tree = self.extract_claim_tree(claims_text)
         glossary = self.extract_definitions(full_text)
         
-        # Step 1: Identify Anchors
-        anchors = self.identify_anchors(claims_text, full_text)
-        
-        # Step 2: Dense Context
-        dense_context = self.get_dense_context(full_text)
-        
-        # Step 4: Identify potential key figures from text
-        # Simple regex to find top referenced FIGs
-        fig_refs = re.findall(r'FIG\.\s*(\d+)', full_text)
+        # Find top 2 mentioned FIGs in CLAIMS or early DESCRIPTION
+        fig_refs = re.findall(r'FIG\.\s*(\d+)', claims_text + full_text[:5000])
         top_figs = sorted(list(set(fig_refs)), key=lambda x: fig_refs.count(x), reverse=True)[:2]
-        
+        if not top_figs: top_figs = ["1"] # Default to Fig 1
+
         extracted_images = {}
         for fnum in top_figs:
             flabel = f"FIG. {fnum}"
@@ -194,23 +132,16 @@ class StructuredAnalyzer:
                 extracted_images[flabel] = path
 
         return {
-            "dense_context": dense_context,
-            "anchor_count": len(anchors),
             "claim_tree": claim_tree,
-            "claim_tree_mermaid": self.generate_mermaid({"claim_tree": claim_tree}, "claim_tree"),
+            "claim_tree_mermaid": self.generate_mermaid({"claim_tree": claim_tree}),
             "glossary": glossary,
             "extracted_images": extracted_images
         }
 
 if __name__ == "__main__":
-    if len(sys.argv) < 3:
-        print("Usage: python structured_analyzer.py <pdf_path> <claims_text_file>")
-        sys.exit(1)
-        
+    if len(sys.argv) < 3: sys.exit(1)
     pdf = sys.argv[1]
-    with open(sys.argv[2], "r", encoding="utf-8") as f:
-        claims = f.read()
-        
+    with open(sys.argv[2], "r", encoding="utf-8") as f: claims = f.read()
     analyzer = StructuredAnalyzer()
     result = analyzer.run_analysis_pipeline(pdf, claims)
     print(json.dumps(result, ensure_ascii=False, indent=2))
