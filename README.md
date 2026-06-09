@@ -1,6 +1,17 @@
-# Patent Structured Analysis
+# Patent Structured Analysis (v2.0)
 
-A Hermes skill for performing rigorous 4-step structured patent analysis on any patent document (PDF, text, or database record). Extracted from the production `patent-agent` backend and packaged as a reusable, standalone skill.
+A professional-grade skill for performing rigorous structured patent analysis. This tool transforms dense legal patent text into actionable technical data using a sophisticated 4-step workflow, now enhanced with Claim Tree visualization and Lexicographical analysis.
+
+---
+
+## What's New in v2.0
+
+| Feature | Description |
+| :--- | :--- |
+| **Claim Tree Analysis** | Automatically parses and visualizes independent and dependent claim hierarchies using Mermaid diagrams. |
+| **Auto-Glossary (Lexicographer)** | Scans the description for inventor-defined terms to ensure legal precision in technical interpretation. |
+| **Dual-Pass Strategy** | Uses an "Anchor-Snippet" approach to handle extremely long patents without losing technical context. |
+| **Mermaid Visualizations** | Generates both Component Architecture and Functional Logic diagrams. |
 
 ---
 
