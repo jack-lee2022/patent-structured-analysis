@@ -1,17 +1,19 @@
-# Patent Structured Analysis (v2.0)
+# Patent Structured Analysis (v3.0)
 
-A professional-grade skill for performing rigorous structured patent analysis. This tool transforms dense legal patent text into actionable technical data using a sophisticated 4-step workflow, now enhanced with Claim Tree visualization and Lexicographical analysis.
+A professional-grade Claude Code skill for rigorous structured patent analysis. This tool transforms patent PDF documents into comprehensive structured Markdown reports, extracting original figures, building Claim Trees, and delivering FTO/design-around recommendations.
 
 ---
 
-## What's New in v2.0
+## What's New in v3.0
 
 | Feature | Description |
 | :--- | :--- |
-| **Claim Tree Analysis** | Automatically parses and visualizes independent and dependent claim hierarchies using Mermaid diagrams. |
-| **Auto-Glossary (Lexicographer)** | Scans the description for inventor-defined terms to ensure legal precision in technical interpretation. |
-| **Dual-Pass Strategy** | Uses an "Anchor-Snippet" approach to handle extremely long patents without losing technical context. |
-| **Mermaid Visualizations** | Generates both Component Architecture and Functional Logic diagrams. |
+| **PDF-Native Workflow** | Directly extracts full text and drawing sheets from patent PDFs using PyMuPDF — no copy-paste required. |
+| **Original Figure Embedding** | Extracts all drawing sheet pages at 3× resolution and embeds them inline in the report. |
+| **Complete Claim Tree** | Mermaid `graph LR` diagram covering all independent and dependent claims with Chinese labels. |
+| **Structured .md Report** | Outputs a self-contained Markdown file with 10 defined sections, saved next to the source PDF. |
+| **Patent Expiry Calculator** | Automatically computes expiry dates under both old law (17yr from grant) and new law (20yr from filing), taking the later date. |
+| **FTO Tables** | Structured infringement risk tables and design-around strategy tables per independent claim. |
 
 ---
 
@@ -19,286 +21,129 @@ A professional-grade skill for performing rigorous structured patent analysis. T
 
 | Scenario | What This Skill Does |
 |----------|---------------------|
-| **Freedom-to-Operate (FTO)** | Identify mandatory components you must avoid in your product |
-| **Competitive Teardown** | Reverse-engineer a competitor's patent into concrete technical elements |
-| **Design-Around / Invalidity** | Map which components are optional vs. mandatory, find gaps for circumvention |
-| **Patent Landscape** | Batch-analyze a portfolio and extract structured data for due diligence |
-| **Technical Due Diligence** | Generate executive summaries for M&A, licensing, or investor review |
+| **Freedom-to-Operate (FTO)** | Identify mandatory claim elements you must avoid; receive design-around strategies |
+| **Competitive Teardown** | Reverse-engineer a competitor's patent into structured technical components |
+| **Claim Dissection** | Map all claims into a hierarchical Mermaid tree |
+| **Patent Due Diligence** | Generate executive-ready reports for M&A, licensing, or investor review |
+| **Expiry Verification** | Instantly confirm whether a patent is in-force or public domain |
 
 ---
 
-## 4-Step Analysis Workflow
+## 5-Step Analysis Workflow
 
-### Step 1 — Independent Claims Analysis
-- **Input**: The independent claim(s)
-- **Output**: Technical problem, solution, key elements, boundary terms, and scope limitations
-- **Purpose**: Understand *what* the patent protects at its broadest level
+### Step 1 — Extract Full PDF Text
+Uses PyMuPDF (`fitz`) to extract all pages, including cover (bibliographic data), specification (background, summary, detailed description), and all claims.
 
-### Step 2 — Necessary Components Mapping
-- **Input**: Claim elements + patent description
-- **Output**: Component list with `is_optional` flag and `function` description
-- **Purpose**: Identify what you must avoid (mandatory) vs. what you can design around (optional)
+### Step 2 — Detect and Extract Drawing Sheets
+Scans each page's character count to identify drawing sheets (typically < 200 chars). Extracts them as **3× resolution PNG** images into a `{PatentNo}_figures/` folder alongside the output report.
 
-### Step 3 — Diagram Correspondence
-- **Input**: Components + patent figures
-- **Output**: For each component, which figure illustrates it and what the figure shows
-- **Purpose**: Find the visual evidence that supports each technical element
+### Step 3 — Parse Patent Structure
+Parses the full text to extract bibliographic data, abstract, figure descriptions, all component reference numbers, cited references, and every claim (identifying independent vs. dependent).
 
-### Step 4 — Key Diagram Identification
-- **Input**: All figures + Step 1 output
-- **Output**: The single "hero figure" that best captures the invention, with a completeness score (1–10) and alternative candidates
-- **Purpose**: Determine the one figure an engineer should look at first
+### Step 4 — Write Structured .md Report
+Produces a complete Markdown file at `{PDF_directory}/{PatentNo}_analysis.md` using relative image paths — compatible with VS Code, Obsidian, Typora, and any Markdown viewer.
+
+### Step 5 — Report to User
+Confirms the saved file path and summarizes key findings (number of independent claims, core technology, patent status).
+
+---
+
+## Report Structure
+
+Every report contains these 10 sections in order:
+
+| Section | Content |
+|---------|---------|
+| **基本資料** | 13-field bibliographic table including expiry status |
+| **1. 專利摘要** | 2–4 paragraph abstract covering purpose, mechanism, modes, and applications |
+| **2. 核心技術圖示** | One subsection per drawing sheet with embedded PNG and technical caption |
+| **3. 權利要求層次結構** | Mermaid `graph LR` claim dependency tree (all claims, Chinese labels) |
+| **4. 關鍵術語定義** | Glossary table of 8–15 key technical and legal terms with source references |
+| **5. 技術組件清單** | All numbered components with 必要/選用 classification and technical description |
+| **6. FTO / 迴避設計建議** | Infringement risk table + design-around table + expiry blockquote |
+| **附錄：引用文獻** | Full list of cited US patents and academic literature |
 
 ---
 
 ## Installation
 
+### Claude Code (Recommended)
+
+Copy the skill folder directly into your Claude Code skills directory:
+
+```bash
+git clone https://github.com/jack-lee2022/patent-structured-analysis.git \
+  ~/.claude/skills/patent-structured-analysis
+```
+
+Claude Code will auto-discover `SKILL.md` and trigger the skill whenever you:
+- Provide a patent PDF path and ask for analysis
+- Say "分析這份專利", "analyze this patent", "patent FTO analysis"
+- Ask for "claim dissection", "structured patent report", "freedom-to-operate"
+
+No manual invocation required — the skill triggers automatically based on context.
+
 ### Hermes Agent
 
 ```bash
-# Clone into your Hermes skills path
-git clone git@github.com:jack-lee2022/patent-structured-analysis.git \
+git clone https://github.com/jack-lee2022/patent-structured-analysis.git \
   ~/.hermes/skills/patent-structured-analysis
 ```
 
-Hermes will auto-discover `SKILL.md` on startup and trigger the skill when you say:
-
-- `分析專利`、`拆解專利`、`FTO分析`
-- `獨立項分析`、`組件映射`、`附圖對應`
-- `關鍵圖示`、`專利結構`、`專利拆解`
-
----
-
-### Claude Code
-
-Install the `.skill` package (zip-based skill bundle):
-
-```bash
-# Download the latest .skill release
-curl -L -o patent-structured-analysis.skill \
-  https://github.com/jack-lee2022/patent-structured-analysis/releases/latest/download/patent-structured-analysis.skill
-
-# Install via Claude Code CLI
-claude skills install patent-structured-analysis.skill
-```
-
-Or clone directly (Claude Code also supports folder-based skills):
-
-```bash
-claude skills add \
-  --from git@github.com:jack-lee2022/patent-structured-analysis.git
-```
-
----
-
 ### OpenClaw
 
-OpenClaw uses the same folder-based skill structure as Hermes:
-
 ```bash
-# Clone into OpenClaw's skills directory (default path)
-git clone git@github.com:jack-lee2022/patent-structured-analysis.git \
+git clone https://github.com/jack-lee2022/patent-structured-analysis.git \
   ~/.openclaw/skills/patent-structured-analysis
-
-# Or via the OpenClaw CLI
-openclaw skill install jack-lee2022/patent-structured-analysis
-```
-
-> OpenClaw skill auto-discovery is enabled by default. If disabled, add to your `openclaw.yaml`:
-> ```yaml
-> skills:
->   - path: ~/.openclaw/skills/patent-structured-analysis
->   ```
-
----
-
-### Gemini (Google AI / Vertex AI)
-
-Gemini does not use folder-based skills. Instead, load `SKILL.md` as a **system instruction** and expose the `analyze_patent` function via the **Function Calling** API.
-
-#### Option A: System Instruction (Chat/Studio)
-
-Copy the content of `SKILL.md` into the **System Instructions** field in Google AI Studio or Gemini API:
-
-```python
-from google import genai
-
-client = genai.Client(api_key="YOUR_API_KEY")
-
-# Load the skill as system instruction
-with open("SKILL.md") as f:
-    system_instruction = f.read()
-
-response = client.models.generate_content(
-    model="gemini-2.0-flash",
-    contents="Analyze patent US11311692B2 for FTO",
-    config=genai.types.GenerateContentConfig(
-        system_instruction=system_instruction
-    ),
-)
-```
-
-#### Option B: Function Calling (API/Vertex AI)
-
-Register the `analyze_patent` function so Gemini can call the script when needed:
-
-```python
-import subprocess
-import json
-
-analyze_patent_tool = {
-    "name": "analyze_patent",
-    "description": "Perform 4-step structured analysis on a patent (PDF, text, or DB ID)",
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "source": {
-                "type": "string",
-                "enum": ["patent_id", "pdf", "text"],
-                "description": "Input type"
-            },
-            "value": {
-                "type": "string",
-                "description": "Patent ID, PDF path, or raw text"
-            },
-            "db_path": {
-                "type": "string",
-                "description": "SQLite DB path (required for patent_id source)"
-            }
-        },
-        "required": ["source", "value"]
-    }
-}
-
-def run_analysis(source, value, db_path=None):
-    cmd = ["python3", "scripts/analyze_patent.py", f"--{source}", value]
-    if db_path:
-        cmd += ["--db", db_path]
-    result = subprocess.run(cmd, capture_output=True, text=True)
-    return json.loads(result.stdout)
-
-# Use with Gemini function calling
-response = client.models.generate_content(
-    model="gemini-2.0-flash",
-    contents="Analyze patent US11311692B2",
-    config=genai.types.GenerateContentConfig(
-        tools=[analyze_patent_tool]
-    ),
-)
 ```
 
 ---
 
-## Standalone Script Usage
+## Usage Example
 
-The bundled Python script works without any AI agent:
+Simply provide a patent PDF path in natural language:
+
+```
+請分析這份專利：/path/to/US6702765.pdf
+```
+
+The skill will:
+1. Extract all text and figures from the PDF
+2. Save `US6702765_figures/FIG_sheet_1.png` … `FIG_sheet_N.png` (3× zoom)
+3. Write `US6702765_analysis.md` with all sections and embedded figures
+4. Confirm the output path
+
+### Example Output Files
+
+```
+downloads/
+├── US6702765.pdf                    ← input
+├── US6702765_analysis.md            ← structured report
+└── US6702765_figures/
+    ├── FIG_sheet_1.png              ← Sheet 1 (3× resolution)
+    ├── FIG_sheet_2.png              ← Sheet 2
+    └── FIG_sheet_3.png              ← Sheet 3
+```
+
+### Convert Report to PDF
 
 ```bash
-# From patent-agent database
-python scripts/analyze_patent.py \
-  --patent-id US11311692B2 \
-  --db /path/to/patents.db \
-  --output analysis.json
-
-# From PDF
-python scripts/analyze_patent.py \
-  --pdf /path/to/patent.pdf \
-  --output analysis.json
-
-# From raw text
-python scripts/analyze_patent.py \
-  --text "Claims: ... Description: ..." \
-  --output analysis.json
-```
-
-### Python API
-
-```python
-from scripts.analyze_patent import StructuredPatentAnalyzer
-
-analyzer = StructuredPatentAnalyzer(db_path="/path/to/patents.db")
-result = analyzer.analyze_patent_id("US11311692B2")
-
-print(result["step1_independent_claims_analysis"]["technical_problem"])
-print(result["step4_key_diagrams"]["primary_diagram"])
+npx md-to-pdf US6702765_analysis.md
 ```
 
 ---
 
-## Output Format
+## Patent Expiry Calculation
 
-The skill always produces a single JSON object with this exact structure:
+The skill automatically computes expiry using the correct legal rule:
 
-```json
-{
-  "patent_id": "US11311692B2",
-  "title": "Negative-pressure oral apparatus and method...",
-  "step1_independent_claims_analysis": {
-    "technical_problem": "...",
-    "technical_solution": "...",
-    "technical_elements": ["...", "..."],
-    "key_terms": ["...", "..."],
-    "function_and_purpose": "...",
-    "scope_and_limitations": "..."
-  },
-  "step2_necessary_components": [
-    {
-      "component_name": "...",
-      "is_optional": false,
-      "function": "to ..."
-    }
-  ],
-  "step3_corresponding_diagrams": [
-    {
-      "component_name": "...",
-      "diagram_reference": "FIG. 1",
-      "diagram_description": "..."
-    }
-  ],
-  "step4_key_diagrams": {
-    "primary_diagram": "FIG. 1",
-    "reasoning": "...",
-    "completeness_score": 8,
-    "alternative_diagrams": ["FIG. 2", "FIG. 3"]
-  },
-  "overall_summary": "本专利提出了..."
-}
-```
+| Filing Date | Applicable Law | Term |
+|-------------|----------------|------|
+| Before June 8, 1995 | Old law | 17 years from grant date |
+| On/after June 8, 1995 | New law | 20 years from earliest filing date |
+| Straddles both | Both apply | Take the **later** of the two dates |
 
----
-
-## Integration with patent-agent
-
-This skill is designed to work with the [patent-agent](https://github.com/jack-lee2022/patent_agent) backend:
-
-| Source | How to Use |
-|--------|-----------|
-| `patents.db` | `patents` table provides `claims`, `description`, `abstract` |
-| `patents.db` | `analyses` table stores the full 4-step JSON |
-| `collector.py` | `_normalize_list_item()` extracts raw patent data for analysis |
-
-Database schema (patent-agent):
-
-```sql
-CREATE TABLE patents (
-    id INTEGER PRIMARY KEY,
-    patent_id TEXT UNIQUE,
-    title TEXT,
-    abstract TEXT,
-    claims TEXT,
-    description TEXT,
-    publication_date TEXT,
-    assignee TEXT
-);
-
-CREATE TABLE analyses (
-    id INTEGER PRIMARY KEY,
-    patent_id TEXT,
-    analysis_json TEXT,
-    analyzed_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    FOREIGN KEY (patent_id) REFERENCES patents(patent_id)
-);
-```
+Patent Term Adjustments (PTA) under 35 U.S.C. 154(b) are also reflected when present on the cover page.
 
 ---
 
@@ -306,15 +151,20 @@ CREATE TABLE analyses (
 
 | Package | Required | Purpose |
 |---------|----------|---------|
-| `python` >= 3.9 | Yes | Runtime |
-| `pdfplumber` | Optional | PDF text extraction (preferred) |
-| `PyMuPDF (fitz)` | Optional | PDF text extraction (fallback) |
+| `python` ≥ 3.9 | **Yes** | Runtime |
+| `PyMuPDF (fitz)` | **Yes** | PDF text extraction and figure rendering |
+
+Install PyMuPDF:
+
+```bash
+pip install pymupdf
+```
 
 ---
 
 ## License
 
-MIT — extracted from the patent-agent project for standalone reuse.
+MIT — part of the patent-agent project ecosystem.
 
 ---
 
