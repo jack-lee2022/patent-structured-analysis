@@ -2,6 +2,8 @@ import sys
 import re
 import json
 import fitz  # PyMuPDF
+HAS_PYMUPDF = True
+from pathlib import Path
 
 class StructuredAnalyzer:
     """
@@ -132,8 +134,39 @@ class StructuredAnalyzer:
                 
         return glossary
 
+    def extract_figure_image(self, pdf_path, fig_label, output_dir="."):
+        """
+        Search for a figure label (e.g., 'FIG. 1') and save the page as an image.
+        """
+        if not HAS_PYMUPDF:
+            return None
+        
+        doc = fitz.open(pdf_path)
+        img_path = None
+        
+        # Normalize fig_label (e.g., 'FIG. 1')
+        search_term = fig_label.replace("Figure", "FIG.").upper()
+        
+        for i in range(len(doc)):
+            page = doc[i]
+            # Search for the FIG label on the page
+            text_instances = page.search_for(search_term)
+            if text_instances:
+                # If found, render the page to an image
+                pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))  # 2x zoom for better quality
+                filename = f"{patent_id}_{fig_label.replace(' ', '_')}.png"
+                img_path = str(Path(output_dir) / filename)
+                pix.save(img_path)
+                print(f"[IMAGE] Extracted {fig_label} from page {i+1} to {img_path}")
+                break
+        
+        doc.close()
+        return img_path
+
     def run_analysis_pipeline(self, pdf_path, claims_text):
         """Full pipeline execution."""
+        global patent_id
+        patent_id = Path(pdf_path).stem
         print(f"[PIPELINE] Starting analysis for {pdf_path}")
         
         full_text = self.extract_text_from_pdf(pdf_path)
@@ -144,17 +177,29 @@ class StructuredAnalyzer:
         
         # Step 1: Identify Anchors
         anchors = self.identify_anchors(claims_text, full_text)
-        print(f"[PIPELINE] Identified {len(anchors)} relevant paragraph anchors.")
         
         # Step 2: Dense Context
         dense_context = self.get_dense_context(full_text)
         
+        # Step 4: Identify potential key figures from text
+        # Simple regex to find top referenced FIGs
+        fig_refs = re.findall(r'FIG\.\s*(\d+)', full_text)
+        top_figs = sorted(list(set(fig_refs)), key=lambda x: fig_refs.count(x), reverse=True)[:2]
+        
+        extracted_images = {}
+        for fnum in top_figs:
+            flabel = f"FIG. {fnum}"
+            path = self.extract_figure_image(pdf_path, flabel, output_dir=str(Path(pdf_path).parent))
+            if path:
+                extracted_images[flabel] = path
+
         return {
             "dense_context": dense_context,
             "anchor_count": len(anchors),
             "claim_tree": claim_tree,
             "claim_tree_mermaid": self.generate_mermaid({"claim_tree": claim_tree}, "claim_tree"),
-            "glossary": glossary
+            "glossary": glossary,
+            "extracted_images": extracted_images
         }
 
 if __name__ == "__main__":
