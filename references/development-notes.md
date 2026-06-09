@@ -1,6 +1,53 @@
 # Patent Structured Analysis — Development Notes
 
-These notes capture the technical challenges encountered when extracting the 4-step structured analysis logic from the `patent-agent` backend and packaging it as a standalone skill. Keep this for future maintenance, refactoring, or porting work.
+These notes capture technical challenges and design decisions across all versions of this skill. Keep this for future maintenance, refactoring, or porting work.
+
+---
+
+## v3.0 Design Decisions (2025–2026)
+
+### Key Figure Selection (Section 2)
+
+**Change**: Section 2 of the report changed from "one subsection per drawing sheet (all sheets)" to "4–5 key figures selected for direct correspondence to independent claim elements."
+
+**Rationale**: Listing every drawing sheet produces reports with 7–12 figure sections, most of which show dimension variants, alternative materials, or single-dependent-claim details. Readers must scan all figures to reconstruct the independent claim's technical picture. The new approach forces the analyst to identify which figures are structurally necessary for claim coverage, making Section 2 directly usable for FTO and design-around work.
+
+**Selection priority**:
+1. System overview with all/most independent claim elements
+2. Exploded or cross-section view of core mechanism
+3. Comparison figure illustrating the key technical feature
+4. Second-embodiment figure confirming claim breadth
+5. (Optional) Dependent-claim figure representing the most complete combination
+
+**Not selected**: dimension variants, alternative material figures, single-dependent-claim illustrations.
+
+### Scanned PDF Fallback
+
+**Problem**: Some granted patent PDFs (e.g., Chinese publication scans re-issued as US grants) have zero embedded text — `fitz.page.get_text()` returns empty strings for all pages.
+
+**Detection**: Check `len(doc[i].get_text().strip()) == 0` for all pages. If total extracted text < 100 chars across the whole document, treat as scanned.
+
+**Fallback workflow**:
+1. Save all pages as PNG at 2x resolution via `get_pixmap(matrix=fitz.Matrix(2.0, 2.0))`
+2. Pass each page image to the AI via the `Read` tool (multimodal vision)
+3. For OCR fallback: use `pytesseract` if Tesseract binary is available at `C:\Program Files\Tesseract-OCR\tesseract.exe` (Windows) or system PATH (Linux/macOS)
+4. OCR pages individually, save to `.txt`, then parse as normal
+
+**pytesseract path config (Windows)**:
+```python
+import pytesseract
+pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract.exe'
+```
+
+### Terminal Disclaimer Expiry
+
+**Problem**: A patent subject to a Terminal Disclaimer (TD) cannot extend past the expiry of the disclaimer reference patent (usually the parent). The standard 20-year + PTA calculation overstates the effective term.
+
+**Rule**: Report BOTH the patent's own calculated term AND the TD constraint. Always flag the user to verify the parent patent's exact expiry (including the parent's PTA).
+
+---
+
+These notes capture the technical challenges encountered when extracting the structured analysis logic from the `patent-agent` backend and packaging it as a standalone skill.
 
 ---
 

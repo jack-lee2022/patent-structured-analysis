@@ -50,7 +50,7 @@ Confirms the saved file path and summarizes key findings (number of independent 
 
 ## Report Structure
 
-Every report contains these 10 sections in order:
+Every report contains these 8 sections in order:
 
 | Section | Content |
 |---------|---------|

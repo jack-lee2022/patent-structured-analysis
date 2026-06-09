@@ -1,6 +1,6 @@
 {
   "name": "analyze_patent",
-  "description": "Perform 4-step structured patent analysis on a patent document (PDF, text, or database ID). Returns a JSON object with: (1) independent claims analysis, (2) necessary components mapping, (3) diagram correspondence, (4) key diagram identification, and an overall summary. This is the core function of the patent-structured-analysis skill.",
+  "description": "Perform 5-step structured patent analysis on a patent document (PDF, text, or database ID). Returns a structured Markdown report with: (1) full text extraction, (2) key figure selection (4-5 figures corresponding to independent claims), (3) patent structure parsing, (4) complete report generation (bibliographic data, abstract, claim tree, glossary, component list, FTO analysis), and (5) result reporting. This is the core function of the patent-structured-analysis skill v3.0.",
   "parameters": {
     "type": "object",
     "properties": {
