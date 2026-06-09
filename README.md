@@ -9,7 +9,7 @@ A professional-grade Claude Code skill for rigorous structured patent analysis. 
 | Feature | Description |
 | :--- | :--- |
 | **PDF-Native Workflow** | Directly extracts full text and drawing sheets from patent PDFs using PyMuPDF — no copy-paste required. |
-| **Original Figure Embedding** | Extracts all drawing sheet pages at 3× resolution and embeds them inline in the report. |
+| **Smart Figure Selection** | Extracts all drawing sheets at 3× resolution into `{PatentNo}_figures/`; embeds only the **4–5 key figures** that directly correspond to independent claim elements in the report. |
 | **Complete Claim Tree** | Mermaid `graph LR` diagram covering all independent and dependent claims with Chinese labels. |
 | **Structured .md Report** | Outputs a self-contained Markdown file with 10 defined sections, saved next to the source PDF. |
 | **Patent Expiry Calculator** | Automatically computes expiry dates under both old law (17yr from grant) and new law (20yr from filing), taking the later date. |
@@ -56,7 +56,7 @@ Every report contains these 10 sections in order:
 |---------|---------|
 | **基本資料** | 13-field bibliographic table including expiry status |
 | **1. 專利摘要** | 2–4 paragraph abstract covering purpose, mechanism, modes, and applications |
-| **2. 核心技術圖示** | One subsection per drawing sheet with embedded PNG and technical caption |
+| **2. 核心技術圖示** | 4–5 key figures selected for direct correspondence to independent claim elements; each with embedded PNG and caption explaining claim coverage |
 | **3. 權利要求層次結構** | Mermaid `graph LR` claim dependency tree (all claims, Chinese labels) |
 | **4. 關鍵術語定義** | Glossary table of 8–15 key technical and legal terms with source references |
 | **5. 技術組件清單** | All numbered components with 必要/選用 classification and technical description |
