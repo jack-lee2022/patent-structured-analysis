@@ -18,6 +18,9 @@ env/
 *_figures/
 *_analysis.md
 scan_pages/
+# But keep examples/ tracked
+!examples/
+!examples/*
 
 # OS
 .DS_Store
