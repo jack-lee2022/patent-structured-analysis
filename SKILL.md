@@ -17,6 +17,38 @@ description: |
 
 ---
 
+## 五技能流程中的角色
+
+本技能是「微觀分析層」，接收 `patent-downloader` 取得的 PDF 全文，對**單篇或少量**關鍵專利進行深度結構化解析。
+
+```
+patent-downloader ──PDF + 附圖──▶ patent-structured-analysis
+                                          │
+                                  輸出：迴避設計建議
+                                          │
+                                          ▼
+                              patent-deployment（調整佈局矩陣）
+```
+
+**與 pro-patent-search 的 `claim_chart_gen.py` 的分工：**
+
+| | `claim_chart_gen.py` | `patent-structured-analysis` |
+|---|---|---|
+| 分析規模 | 批次（多件比對） | 單篇深度精讀 |
+| 輸入 | patent_id + 產品描述文字 | PDF 全文 + 附圖 |
+| 輸出 | Element-by-Element 比對表 | 完整結構化報告（8 節） |
+| 適用情境 | 快速確認多件的侵權風險清單 | 深度 FTO + 迴避設計方案 |
+
+**三條路徑中的觸發場景：**
+
+| 路徑 | 觸發點 | 分析目的 |
+|------|--------|---------|
+| **路徑 B**（精讀 + FTO） | patent-downloader 下載完成 | 拆解競爭者權利要求，找具體迴避設計 |
+| **路徑 C**（完整策略） | patent-deployment 選定斷路式或圍牆式後 | 驗證卡位點的申請範圍，確認迴避空間 |
+| 獨立使用 | 用戶直接提供專利號或 PDF | 無需上游技能，直接分析 |
+
+---
+
 ## 工作流程
 
 ### Step 1 — 提取 PDF 全文

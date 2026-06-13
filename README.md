@@ -1,6 +1,47 @@
 # Patent Structured Analysis (v3.0)
 
-A professional-grade Claude Code skill for rigorous structured patent analysis. This tool transforms patent PDF documents into comprehensive structured Markdown reports, extracting original figures, building Claim Trees, and delivering FTO/design-around recommendations.
+A professional-grade Claude Code skill for rigorous structured patent analysis. Transforms patent PDF documents into comprehensive structured Markdown reports — extracting original figures, building Claim Trees, and delivering FTO/design-around recommendations. Sits at the end of the five-skill patent pipeline as the **micro-analysis layer**.
+
+---
+
+## Five-Skill Pipeline
+
+This skill is the **deep-analysis terminus** — triggered after `patent-downloader` has retrieved the full-text PDF and drawings for a specific high-priority patent identified by upstream analysis.
+
+```
+[1] pro-patent-search → [2] patent-mapping → [3] patent-deployment
+                               │                      │
+                        Identify key patents    Specify targets
+                               └──────┬───────────────┘
+                                      ▼
+                            [4] patent-downloader
+                                PDF + drawings
+                                      │
+                                      ▼
+                    [5] patent-structured-analysis (this skill)
+                        Claim tree · FTO · Design-around
+                                      │
+                              Feeds back into
+                            patent-deployment
+                          (refine filing strategy)
+```
+
+**When this skill is triggered:**
+
+| Path | Trigger | Analysis purpose |
+|------|---------|-----------------|
+| **Path B** — FTO deep-dive | patent-downloader completes download | Identify mandatory claim elements, find design-around options |
+| **Path C** — Full strategy | patent-deployment selects Choke Point or Fence | Verify competitor claim scope, confirm filing room |
+| **Standalone** | User provides patent PDF path directly | No upstream skill required |
+
+**Division of labor with `claim_chart_gen.py` (pro-patent-search):**
+
+| | `claim_chart_gen.py` | `patent-structured-analysis` |
+|---|---|---|
+| Scale | Batch (multiple patents) | Single patent deep-read |
+| Input | Patent ID + product description | Full-text PDF + drawings |
+| Output | Element-by-element comparison table | 8-section structured .md report |
+| Best for | Quick multi-patent infringement risk scan | Deep FTO + concrete design-around plan |
 
 ---
 
