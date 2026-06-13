@@ -213,3 +213,9 @@ MIT — part of the patent-agent project ecosystem.
 
 - [patent-agent](https://github.com/jack-lee2022/patent_agent) — Full patent collection, analysis, and reporting pipeline
 - [patent-search-engine](https://github.com/jack-lee2022/patent-search-engine) — Multi-source patent search skill
+
+---
+
+## Five-Skill Workflow Guide
+
+For the complete five-skill orchestration guide (Paths A / B / C), see **[WORKFLOW.md](https://github.com/jack-lee2022/patent-shared/blob/master/WORKFLOW.md)** in patent-shared.
